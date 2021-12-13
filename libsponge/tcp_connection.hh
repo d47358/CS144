@@ -20,7 +20,8 @@ class TCPConnection {
     //! for 10 * _cfg.rt_timeout milliseconds after both streams have ended,
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
-
+    bool _active{true};
+    size_t _time_since_last_segment_received{0};
   public:
     //! \name "Input" interface for the writer
     //!@{
@@ -80,6 +81,9 @@ class TCPConnection {
     bool active() const;
     //!@}
 
+    void TCP_send_segment();
+    void clean_shutdown();
+    void unclean_shutdown();
     //! Construct a new connection from a configuration
     explicit TCPConnection(const TCPConfig &cfg) : _cfg{cfg} {}
 

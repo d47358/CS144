@@ -9,6 +9,33 @@
 #include <functional>
 #include <queue>
 
+class Retrans_Timer{
+  private:
+    size_t _time;
+    size_t _retrans_timeout;
+    bool _is_running{false};
+  public:
+    Retrans_Timer(uint16_t time):_time(time),_retrans_timeout(time){}
+    void start(){_is_running=true;}
+    void resume(){_time=_retrans_timeout;
+    _is_running=false;}
+    void reset(size_t origin_retrans_time){_time=origin_retrans_time;_retrans_timeout=_time;_is_running=false;}
+    bool is_running(){return _is_running;}
+    bool decline(unsigned int time){
+      if(time>=_time)
+        return true;
+      _time-=time;
+      return false;
+    }
+    //bool expire(){ return _time<=0;}
+    void powtimer(){
+      _retrans_timeout*=2;
+      _time=_retrans_timeout;
+      _is_running=false;
+    }
+};
+
+
 //! \brief The "sender" part of a TCP implementation.
 
 //! Accepts a ByteStream, divides it up into segments and sends the
@@ -32,6 +59,16 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
 
+    bool _syn_flag{false};
+    bool _fin_flag{false};
+    std::queue<TCPSegment> _segments_outstanding{};
+    size_t _bytes_in_flight{0};
+    size_t _window_size{0};
+    uint64_t _recvd_ackno{0};
+    uint16_t _consecutive_retransmissions{0};
+
+    Retrans_Timer _Timer;
+    
   public:
     //! Initialize a TCPSender
     TCPSender(const size_t capacity = TCPConfig::DEFAULT_CAPACITY,
@@ -87,6 +124,8 @@ class TCPSender {
     //! \brief relative seqno for the next byte to be sent
     WrappingInt32 next_seqno() const { return wrap(_next_seqno, _isn); }
     //!@}
+
+    void send_segment(TCPSegment& seg);
 };
 
 #endif  // SPONGE_LIBSPONGE_TCP_SENDER_HH
